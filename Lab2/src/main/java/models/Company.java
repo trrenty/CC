@@ -81,4 +81,8 @@ public class Company {
     public int hashCode() {
         return Objects.hash(id, companyName, country, foundationYear);
     }
+
+    public boolean hasNullValues() {
+        return companyName == null || foundationYear == null || country == null;
+    }
 }

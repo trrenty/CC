@@ -1,19 +1,16 @@
 package handler;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.mongodb.client.MongoCollection;
 import com.sun.net.httpserver.HttpExchange;
 import models.Company;
-import org.bson.conversions.Bson;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.mongodb.client.model.Filters.*;
-import static com.mongodb.client.model.Updates.*;
+import static com.mongodb.client.model.Filters.eq;
 
 
 public final class CompaniesHandler extends BaseHandler {
@@ -100,6 +97,7 @@ public final class CompaniesHandler extends BaseHandler {
 
         companyCollection.deleteOne(eq("company_name", name));
         sendBody(httpExchange, "Deleted", 200);
+        httpExchange.close();
     }
 
     @Override
@@ -137,8 +135,12 @@ public final class CompaniesHandler extends BaseHandler {
 
             try {
                 Company company = objectMapper.readValue(body, Company.class);
-                companyCollection.replaceOne(eq("company_name", name), company);
-                sendBody(httpExchange, body, 200);
+                if (company.hasNullValues()) {
+                    sendBody(httpExchange, "Bad request", 400);
+                } else {
+                    companyCollection.replaceOne(eq("company_name", name), company);
+                    sendBody(httpExchange, body, 200);
+                }
             } catch (Exception e) {
                 sendBody(httpExchange, "Bad json", 400);
             } finally {
@@ -173,6 +175,8 @@ public final class CompaniesHandler extends BaseHandler {
             Company dbCompany = companyCollection.find(eq("company_name", company.getCompanyName())).first();
             if (dbCompany != null) {
                 sendBody(httpExchange, objectMapper.writeValueAsString(dbCompany), 409);
+            } else if (company.hasNullValues()) {
+                sendBody(httpExchange, "Bad request", 400);
             } else {
                 companyCollection.insertOne(company);
                 sendBody(httpExchange, body, 201);
@@ -218,9 +222,15 @@ public final class CompaniesHandler extends BaseHandler {
 
         List<Company> companies = companyCollection.find().into(new ArrayList<>());
         try {
-            String response = objectMapper.writeValueAsString(companies);
+            if (companies.isEmpty()) {
+                sendBody(httpExchange, "No content", 204);
+            }
+            else {
+                String response = objectMapper.writeValueAsString(companies);
 //            System.out.println(response);
-            sendBody(httpExchange, response, 200);
+                sendBody(httpExchange, response, 200);
+            }
+
         } catch (JsonProcessingException e) {
             httpExchange.sendResponseHeaders(500, 0);
         } finally {
@@ -251,7 +261,13 @@ public final class CompaniesHandler extends BaseHandler {
             companies = companyCollection.find(eq(key, query)).into(new ArrayList<>());
         }
         try {
-            String response = objectMapper.writeValueAsString(companies);
+            String response;
+            if (companies.isEmpty()) {
+                response = "";
+            } else if (companies.size() == 1) {
+                response = objectMapper.writeValueAsString(companies.get(0));
+            } else
+                response = objectMapper.writeValueAsString(companies);
 //            System.out.println(response);
             System.out.println(response);
             if (response.isEmpty() || response.equals("null")) {

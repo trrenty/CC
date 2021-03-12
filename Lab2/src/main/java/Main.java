@@ -1,10 +1,5 @@
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpServer;
-import context.DatabaseConnection;
-import handler.BaseHandler;
 import handler.CompaniesHandler;
-import models.Company;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
